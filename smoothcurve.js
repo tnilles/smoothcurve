@@ -187,6 +187,7 @@ var chart = {
 		// Initialization
 		this.container = options.container;
 		this.data = options.data;
+		this.margin = options.margin || this.margin;
 
 		this.buildSVG();
 		this.drawGraph(d);

@@ -6,6 +6,14 @@ var chart = {
 	svg: undefined,
 	svgNS: "http://www.w3.org/2000/svg",
 
+	// Sort elements by x asc
+	sort: function(){
+		this.data.sort(function(a, b){
+			if (a.x > b.x) return 1;
+			else return -1;
+		});
+	},
+
 	// Scale the chart to fit inside the parent element
 	scale: function(){
 		var mnx, mny, mxx, mxy, sourceWidth, sourceHeight,
@@ -177,6 +185,7 @@ var chart = {
 		var pathData, path;
 
 		this.clearSVG();
+		this.sort();
 		this.scale();
 		this.reverse();
 		pathData = this.buildSVGPath();

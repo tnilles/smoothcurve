@@ -55,7 +55,8 @@ var chart = {
 
 	// Get the coefficient cft of the line formed by 2 points (as in y = cft*x + cst)
 	coefficient: function(a, b){
-		return (a.y-b.y)/(a.x-b.x);
+		if (a.x != b.x) return (a.y-b.y)/(a.x-b.x);
+		else return 0;
 	},
 
 	// Compute the x position of a control point

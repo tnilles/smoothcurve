@@ -77,16 +77,24 @@ var chart = {
 	},
 
 	// Give the control point coordinates of a given point b
-	controlPoint: function(a, b, c, flat){
+	controlPoint: function(a, b, c, flat, reversed){
 		var cft, ctrlPt;
 		flat = flat || false;
+		reversed = reversed || false;
+		
 		if (a.x == c.x && a.y == c.y) cft = this.coefficient(a, b);
 		else cft = this.coefficient(a, c);
 
 		if (flat) ctrlPt = (b.x-this.ctrlX(0, a, b, c))+','+(b.y);
+		else if (reversed) ctrlPt = (b.x+this.ctrlX(cft, a, b, c))+','+(b.y+this.ctrlY(cft, a, b, c));
 		else ctrlPt = (b.x-this.ctrlX(cft, a, b, c))+','+(b.y-this.ctrlY(cft, a, b, c));
 
 		return ctrlPt;
+	},
+
+	// Give the symetric point of a by b
+	symetric: function(a, b){
+		return {x: 2*b.x-a.x, y: 2*b.y-a.y};
 	},
 
 	// Check if b is a local extremum
@@ -102,7 +110,7 @@ var chart = {
 
 		if (d.length > 2){
 			// 1st control point
-			data += 'C'+this.controlPoint(d[0], d[0], d[1]);
+			data += 'C'+this.controlPoint(this.symetric(d[1], d[0]), d[0], d[1], false, true);
 
 			// 2nd control point
 			//	If the 2nd point is a local extremum, the line formed by its control points should be horizontal

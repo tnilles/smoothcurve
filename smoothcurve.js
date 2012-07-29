@@ -98,6 +98,18 @@ var chart = {
 		else if (reversed) ctrlPt = (b.x+this.ctrlX(cft, a, b, c))+','+(b.y+this.ctrlY(cft, a, b, c));
 		else ctrlPt = (b.x-this.ctrlX(cft, a, b, c))+','+(b.y-this.ctrlY(cft, a, b, c));
 
+		// Show the ctrl points
+		if (flat){
+			this.setPoint((b.x-this.ctrlX(0, a, b, c)), b.y, "red", "red");
+			this.setLine((b.x-this.ctrlX(0, a, b, c)), b.y, b.x, b.y);
+		}else if (reversed){
+			this.setPoint((b.x+this.ctrlX(cft, a, b, c)), (b.y+this.ctrlY(cft, a, b, c)), "red", "red");
+			this.setLine((b.x+this.ctrlX(cft, a, b, c)), (b.y+this.ctrlY(cft, a, b, c)), b.x, b.y);
+		}else{
+			this.setPoint((b.x-this.ctrlX(cft, a, b, c)), (b.y-this.ctrlY(cft, a, b, c)), "red", "red");
+			this.setLine((b.x-this.ctrlX(cft, a, b, c)), (b.y-this.ctrlY(cft, a, b, c)), b.x, b.y);
+		}
+
 		return ctrlPt;
 	},
 
@@ -169,6 +181,18 @@ var chart = {
 		c.setAttributeNS(null, "r", 5);
 		c.setAttributeNS(null, "fill", fill);
 		c.setAttributeNS(null, "stroke", stroke);
+		this.svg.appendChild(c);
+	},
+
+	setLine: function(x1, y1, x2, y2){
+		var c = document.createElementNS(this.svgNS, "line");
+
+		c.setAttributeNS(null, "x1", x1);
+		c.setAttributeNS(null, "y1", y1);
+		c.setAttributeNS(null, "x2", x2);
+		c.setAttributeNS(null, "y2", y2);
+		c.setAttributeNS(null, "fill", "gray");
+		c.setAttributeNS(null, "stroke", "gray");
 		this.svg.appendChild(c);
 	},
 

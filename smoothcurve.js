@@ -71,9 +71,13 @@ var chart = {
 	// b is a point between a and c
 	ctrlX: function(cft, a, b, c){
 		// Control distance computation
-		var minDist = (Math.abs(a.x-b.x)+ Math.abs(c.x-b.x))/10;
-		minDist += 7*Math.min(Math.abs(a.x-b.x), Math.abs(c.x-b.x))/10;
-		var ctrl = 0.7*minDist;
+		var minDist = Math.min(Math.abs(a.x-b.x), Math.abs(c.x-b.x)),
+			dist = (Math.abs(a.x-b.x)+ Math.abs(c.x-b.x))/10,
+			ctrl;
+
+		dist += 7*minDist/10;
+		ctrl = 0.7*dist;
+		if (ctrl > minDist) ctrl = minDist;
 		return ctrl*Math.sqrt(1/(1+Math.pow(cft, 2)));
 	},
 

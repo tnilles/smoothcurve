@@ -75,7 +75,7 @@ var chart = {
 			dist = (Math.abs(a.x-b.x)+ Math.abs(c.x-b.x))/10,
 			ctrl;
 
-		dist += 7*minDist/10;
+		dist += 9*minDist/10;
 		ctrl = 0.7*dist;
 		if (ctrl > minDist) ctrl = minDist;
 		return ctrl*Math.sqrt(1/(1+Math.pow(cft, 2)));

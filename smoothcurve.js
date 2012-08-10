@@ -72,11 +72,10 @@ var chart = {
 	ctrlX: function(cft, a, b, c){
 		// Control distance computation
 		var minDist = Math.min(Math.abs(a.x-b.x), Math.abs(c.x-b.x)),
-			dist = (Math.abs(a.x-b.x)+ Math.abs(c.x-b.x))/10,
+			dist = (Math.abs(a.x-b.x)+ Math.abs(c.x-b.x)), // distance between a & c
 			ctrl;
 
-		dist += 9*minDist/10;
-		ctrl = 0.7*dist;
+		ctrl = 0.07*dist+0.63*minDist; // weighted average
 		if (ctrl > minDist) ctrl = minDist;
 		return ctrl*Math.sqrt(1/(1+Math.pow(cft, 2)));
 	},
@@ -101,18 +100,6 @@ var chart = {
 		if (flat) ctrlPt = (b.x-this.ctrlX(0, a, b, c))+','+(b.y);
 		else if (reversed) ctrlPt = (b.x+this.ctrlX(cft, a, b, c))+','+(b.y+this.ctrlY(cft, a, b, c));
 		else ctrlPt = (b.x-this.ctrlX(cft, a, b, c))+','+(b.y-this.ctrlY(cft, a, b, c));
-
-		// Show the ctrl points
-		if (flat){
-			this.setPoint((b.x-this.ctrlX(0, a, b, c)), b.y, "red", "red");
-			this.setLine((b.x-this.ctrlX(0, a, b, c)), b.y, b.x, b.y);
-		}else if (reversed){
-			this.setPoint((b.x+this.ctrlX(cft, a, b, c)), (b.y+this.ctrlY(cft, a, b, c)), "red", "red");
-			this.setLine((b.x+this.ctrlX(cft, a, b, c)), (b.y+this.ctrlY(cft, a, b, c)), b.x, b.y);
-		}else{
-			this.setPoint((b.x-this.ctrlX(cft, a, b, c)), (b.y-this.ctrlY(cft, a, b, c)), "red", "red");
-			this.setLine((b.x-this.ctrlX(cft, a, b, c)), (b.y-this.ctrlY(cft, a, b, c)), b.x, b.y);
-		}
 
 		return ctrlPt;
 	},

@@ -1,10 +1,29 @@
 var chart = {
+	svgNS: "http://www.w3.org/2000/svg",
+	svg: undefined,
+	leftMargin: 0,
+	bottomMargin: 0,
+	simpleMargin: 0, // top & right margin
+	w: 0, // container width
+	h: 0, // containe height
+
+	// Customizable
 	margin: 40,
+	innerMargin: 20,
+	fontSize: 14, // in pixels
+	fontFamily: "Arial",
 	data: [],
 	points: [],
 	container: undefined,
-	svg: undefined,
-	svgNS: "http://www.w3.org/2000/svg",
+	
+	// Get container dimensions & compute margins
+	initDimensions: function(){
+		var yExtrema = this.yExtrema();
+		this.simpleMargin = this.margin + this.innerMargin;
+		this.leftMargin = this.magnitude(yExtrema.max.data)*this.fontSize;
+		this.w = this.container.clientWidth;
+		this.h = this.container.clientHeight;
+	},
 
 	// Sort elements by x asc
 	sort: function(){
@@ -39,8 +58,8 @@ var chart = {
 		// Scaling coefficients
 		sourceWidth = mxx - mnx,
 		sourceHeight = mxy - mny,
-		destWidth -= this.margin*2,
-		destHeight -= this.margin*2;
+		destWidth -= this.simpleMargin*2 + this.leftMargin,
+		destHeight -= this.simpleMargin*2 + this.fontSize;
 
 		xcoeff = destWidth/sourceWidth;
 		ycoeff = destHeight/sourceHeight;
@@ -56,8 +75,8 @@ var chart = {
 	// Move the origin from top left to bottom left + add margins
 	reverse: function(){
 		for (var i=0 ; i < this.points.length ; i++){
-			this.points[i].x = this.points[i].x+this.margin;
-			this.points[i].y = this.container.clientHeight-this.points[i].y-this.margin;
+			this.points[i].x = this.points[i].x+this.simpleMargin+this.leftMargin;
+			this.points[i].y = this.container.clientHeight-this.points[i].y-this.simpleMargin-this.fontSize;
 		}
 	},
 
@@ -187,6 +206,111 @@ var chart = {
 		this.svg.appendChild(c);
 	},
 
+	setAxis: function(){
+		var m, yExtrema;
+		m = this.margin;
+		yExtrema = this.yExtrema();
+
+		this.setLine(m+this.leftMargin, this.h-m-this.fontSize, this.w-m, this.h-m-this.fontSize); // horizontal line
+		this.setLine(m+this.leftMargin, m, m+this.leftMargin, this.h-m-this.fontSize); // vertical line
+
+		// Horizontal labels
+		this.label(this.points[0].x, this.h-m+10, this.data[0].x);
+		this.label(this.points[this.points.length-1].x, this.h-m+10, this.data[this.data.length-1].x);
+		this.setLabels(this.points[0].x, this.points[this.points.length-1].x, this.data[0].x, this.data[this.data.length-1].x, 'x');
+
+		// Vertical labels
+		this.label(m+this.leftMargin-10, yExtrema.min.points, yExtrema.min.data, "right");
+		this.label(m+this.leftMargin-10, yExtrema.max.points, yExtrema.max.data, "right");
+		this.setLabels(yExtrema.min.points, yExtrema.max.points, yExtrema.min.data, yExtrema.max.data, 'y');
+	},
+
+	setLabels: function(a, b, av, bv, axis){
+		var c, cv, m, cond;
+		m = this.margin;
+
+		if (axis == 'x') cond = Math.abs(a-b) >= this.labelWidth()*this.fontSize*1.5;
+		if (axis == 'y') cond = Math.abs(a-b) >= this.fontSize*6;
+
+		if (cond){
+			c = this.middle(a, b);
+			cv = this.middle(av, bv);
+			if (axis == 'x') this.label(c, this.h-m+10, Math.round(cv*10)/10);
+			if (axis == 'y') this.label(m+this.leftMargin-10, c, Math.round(cv*10)/10, "right");
+			this.setLabels(a, c, av, cv, axis);
+			this.setLabels(c, b, cv, bv, axis);
+		}
+	},
+
+	middle: function(a, b){
+		return Math.min(a, b) + (Math.abs(a-b)/2);
+	},
+
+	yExtrema: function(){
+		var e;
+		e = {min: {data: this.data[0].y},
+			max: {data: this.data[0].y}};
+
+		if (this.points.length > 0){
+			e.min.points = this.points[0].y;
+			e.max.points = this.points[0].y;
+		}
+
+		for (var i=0 ; i<this.data.length ; i++){
+			if (this.data[i].y < e.min.data){
+				e.min.data = this.data[i].y;
+				if (this.points.length > 0) e.min.points = this.points[i].y;
+			}
+
+			if (this.data[i].y > e.max.data){
+				e.max.data = this.data[i].y;
+				if (this.points.length > 0) e.max.points = this.points[i].y;
+			}
+		}
+
+		return e;
+	},
+
+	labelWidth: function(){
+		var sizeOfLastLabel = Math.max(this.magnitude(Math.round(this.data[this.data.length-1].x*100)/100), this.magnitude(Math.round(this.data[0].x*100)/100));
+		if (sizeOfLastLabel > 4){
+			return sizeOfLastLabel;
+		}else{
+			return 4;
+		}
+	},
+
+	label: function(x, y, text, align){
+		var c, t, a, m;
+
+		m = this.margin;
+		align = align || "center";
+
+		// Text
+		t = document.createTextNode(text);
+		c = document.createElementNS(this.svgNS, "text");
+		c.appendChild(t);
+
+		c.setAttributeNS(null, "x", x);
+		c.setAttributeNS(null, "y", y);
+		c.setAttributeNS(null, "fill", "black");
+		c.setAttributeNS(null, "stroke", "none");
+		c.setAttributeNS(null, "font-size", this.fontSize+"px");
+		c.setAttributeNS(null, "font-family", this.fontFamily);
+		if (align == "center") c.setAttributeNS(null, "text-anchor", "middle");
+		if (align == "right") c.setAttributeNS(null, "text-anchor", "end");
+		c.setAttributeNS(null, "baseline-shift", "-0.5ex"); // vertical align
+		this.svg.appendChild(c);
+
+		// Little line
+		if (align == "center") this.setLine(x, y-20, x, y-28);
+		if (align == "right") this.setLine(x+6, y, x+14, y);
+	},
+
+	magnitude: function(x){
+		return x.toString().length;
+	},
+
 	clearSVG: function(){
 		while (this.svg.firstChild) this.svg.removeChild(this.svg.firstChild);
 	},
@@ -199,6 +323,7 @@ var chart = {
 	drawGraph: function(){
 		var pathData, path;
 
+		this.initDimensions();
 		this.clearSVG();
 		this.sort();
 		this.scale();
@@ -212,6 +337,7 @@ var chart = {
 		this.svg.appendChild(path);
 
 		this.buildPoints();
+		this.setAxis();
 	},
 
 	draw: function(options){
@@ -221,6 +347,10 @@ var chart = {
 		this.container = options.container;
 		this.data = options.data;
 		this.margin = options.margin || this.margin;
+		this.innerMargin = options.innerMargin || this.innerMargin;
+		this.fontSize = options.fontSize || this.fontSize;
+		this.fontFamily = options.fontFamily || this.fontFamily;
+		this.initDimensions();
 
 		this.buildSVG();
 		this.drawGraph(d);

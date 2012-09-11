@@ -1,40 +1,179 @@
-var chart = {
-	svgNS: "http://www.w3.org/2000/svg",
-	svg: undefined,
-	leftMargin: 0,
-	bottomMargin: 0,
-	simpleMargin: 0, // top & right margin
-	w: 0, // container width
-	h: 0, // containe height
+(function(window, document, undefined){
+	// Draw object
+	// All basic drawing goes in here
+	var Draw = function(){
+		this.svgNS = "http://www.w3.org/2000/svg";
+		this.svg = undefined;
+		this.container = undefined;
+	};
 
-	// Customizable
-	margin: 40,
-	innerMargin: 20,
-	fontSize: 14, // in pixels
-	fontFamily: "Arial",
-	data: [],
-	points: [],
-	container: undefined,
-	
-	// Get container dimensions & compute margins
-	initDimensions: function(){
+	Draw.prototype.setAttributes = function(elem, attr){
+		for (var i=0 ; i<attr.length ; i++) elem.setAttributeNS(null, attr[i][0], attr[i][1]);
+		return elem;
+	};
+
+	Draw.prototype.point = function(x, y, stroke, fill){
+		stroke = stroke || 'black';
+		fill = fill || 'white';
+		var c = document.createElementNS(this.svgNS, "circle"),
+			args = [['cx', x], ['cy', y], ['r', 5], ['fill', fill], ['stroke', stroke]];
+
+		this.setAttributes(c, args);
+
+		this.svg.appendChild(c);
+	};
+
+	Draw.prototype.line = function(x1, y1, x2, y2, stroke, fill){
+		stroke = stroke || 'gray';
+		fill = fill || 'gray';
+		var c = document.createElementNS(this.svgNS, "line"),
+			args = [['x1', x1], ['y1', y1], ['x2', x2], ['y2', y2], ['fill', fill], ['stroke', stroke]];
+
+		this.setAttributes(c, args);
+
+		this.svg.appendChild(c);
+	};
+
+	Draw.prototype.clear = function(){ while (this.svg.firstChild) this.svg.removeChild(this.svg.firstChild); };
+
+	Draw.prototype.buildSVG = function(){
+		this.svg = document.createElementNS(this.svgNS, "svg");
+		this.container.appendChild(this.svg);
+	};
+
+	Draw.prototype.text = function(x, y, text, options){
+		var c, t, args, opt;
+
+		options.fill = options.fill || 'black';
+		options.stroke = options.stroke || 'none';
+		options.fontSize = options.fontSize || '14';
+		options.fontFamily = options.fontFamily || 'Arial';
+		options.align = options.align || 'start'; // or middle or end
+
+		t = document.createTextNode(text);
+		c = document.createElementNS(this.svgNS, "text");
+		c.appendChild(t);
+
+		// Set SVG text attributes
+		args = [['x', x], ['y', y], ['fill', options.fill], ['stroke', options.stroke], ['font-size', options.fontSize+"px"],
+				['font-family', options.fontFamily], ['text-anchor', options.align], ['baseline-shift', '-0.5ex']]; // baseline: vertical align
+
+		this.setAttributes(c, args);
+
+		this.svg.appendChild(c);
+	};
+
+	Draw.prototype.path = function(pathData, fill, stroke){
+		stroke = stroke || 'black';
+		fill = fill || 'none';
+
+		var path = document.createElementNS(this.svgNS,"path"),
+			args = [['d', pathData], ['fill', fill], ['stroke', stroke]];
+
+		for (var i=0 ; i<args.length ; i++) path.setAttributeNS(null, args[i][0], args[i][1]);
+
+		this.svg.appendChild(path);
+	};
+
+
+	// Util object
+	// Collection of utility fonctions
+	var Util = function(){};
+
+	Util.distance = function(a, b){ return Math.sqrt(Math.pow(a.x-b.x, 2)+Math.pow(a.y-b.y, 2)); };
+	Util.symmetric = function(a, b){ return {x: 2*b.x-a.x, y: 2*b.y-a.y}; }; // point reflection
+	Util.middle = function(a, b){ return Math.min(a, b) + (Math.abs(a-b)/2); };
+	Util.magnitude = function(x){ return x.toString().length; };
+
+	// Event handler
+	Util.addEvent = function(e, type, f){
+		if (e.attachEvent){
+			e.attachEvent('on'+type, f);
+		}else if (e.addEventListener){
+			e.addEventListener('resize', f, false);
+		}
+	};
+
+
+	// Graph object
+	// Smoothcurve HQ
+	var Graph = function(){
+		// Graph properties
+		this.leftMargin = 0;
+		this.bottomMargin = 0;
+		this.simpleMargin = 0; // Top & Right margin
+		this.w = 0; // container width
+		this.h = 0; // container height
+		this.drawing = new Draw(); // Draw utilities functions
+		// Customizable properties
+		this.margin = 40;
+		this.innerMargin = 20;
+		this.fontSize = 14; // in px
+		this.fontFamily = 'Arial';
+		this.data = []; // Raw data
+		this.points = []; // Data fitted to container
+		this.container = undefined;
+	};
+
+	// Initialization method
+	Graph.prototype.draw = function(options){
+		var that, key = null;
+
+		// Initialization
+		this.container = options.container;
+		this.data = options.data;
+		this.margin = options.margin || this.margin;
+		this.innerMargin = options.innerMargin || this.innerMargin;
+		this.fontSize = options.fontSize || this.fontSize;
+		this.fontFamily = options.fontFamily || this.fontFamily;
+		
+		this.initDimensions();
+
+
+		this.drawing.container = this.container;
+		this.drawing.buildSVG();
+		this.drawGraph(this.data);
+		that = this;
+		Util.addEvent(window, 'resize', function(e){
+			console.log(e);
+			if (key) {
+				clearTimeout(key);
+			}
+			var delay = function(){ that.drawGraph(); };
+			key = setTimeout(delay, 300);
+		});
+	};
+
+	// Steps to draw the graph
+	Graph.prototype.drawGraph = function(){
+		this.initDimensions();
+		this.drawing.clear();
+		this.sort();
+		this.scale();
+		this.reverse();
+		this.drawing.path(this.buildSVGPath());
+		this.buildPoints();
+		this.setAxis();
+	};
+
+	// Compute margins, y values extrema, container dimensions
+	Graph.prototype.initDimensions = function(){
 		var yExtrema = this.yExtrema();
 		this.simpleMargin = this.margin + this.innerMargin;
-		this.leftMargin = this.magnitude(yExtrema.max.data)*this.fontSize;
+		this.leftMargin = Util.magnitude(yExtrema.max.data)*this.fontSize;
 		this.w = this.container.clientWidth;
 		this.h = this.container.clientHeight;
-	},
+	};
 
-	// Sort elements by x asc
-	sort: function(){
+	Graph.prototype.sort = function(){
 		this.data.sort(function(a, b){
 			if (a.x > b.x) return 1;
 			else return -1;
 		});
-	},
+	};
 
-	// Scale the chart to fit inside the parent element
-	scale: function(){
+	// Scale data to fit inside container [data->points]
+	Graph.prototype.scale = function(){
 		var mnx, mny, mxx, mxy, sourceWidth, sourceHeight,
 			destWidth, destHeight, xcoeff, ycoeff;
 
@@ -70,25 +209,25 @@ var chart = {
 			this.points[i].x = Math.ceil((this.data[i].x-mnx)*xcoeff);
 			this.points[i].y = Math.ceil((this.data[i].y-mny)*ycoeff);
 		}
-	},
+	};
 
-	// Move the origin from top left to bottom left + add margins
-	reverse: function(){
+	// Reverse vertically because ordinate is upside-down in SVG
+	Graph.prototype.reverse = function(){
 		for (var i=0 ; i < this.points.length ; i++){
 			this.points[i].x = this.points[i].x+this.simpleMargin+this.leftMargin;
 			this.points[i].y = this.container.clientHeight-this.points[i].y-this.simpleMargin-this.fontSize;
 		}
-	},
+	};
 
-	// Get the coefficient cft of the line formed by 2 points (as in y = cft*x + cst)
-	coefficient: function(a, b){
+	// Compute how much 'y' you get when you cover one 'x'
+	Graph.prototype.coefficient = function(a, b){
 		if (a.x != b.x) return (a.y-b.y)/(a.x-b.x);
 		else return 0;
-	},
+	};
 
 	// Compute the x position of a control point
 	// b is a point between a and c
-	ctrlX: function(cft, a, b, c){
+	Graph.prototype.ctrlX = function(cft, a, b, c){
 		// Control distance computation
 		var minDist = Math.min(Math.abs(a.x-b.x), Math.abs(c.x-b.x)),
 			dist = (Math.abs(a.x-b.x)+ Math.abs(c.x-b.x)), // distance between a & c
@@ -97,18 +236,12 @@ var chart = {
 		ctrl = 0.07*dist+0.63*minDist; // weighted average
 		if (ctrl > minDist) ctrl = minDist;
 		return ctrl*Math.sqrt(1/(1+Math.pow(cft, 2)));
-	},
+	};
 
-	ctrlY: function(cft, a, b, c){
-		return this.ctrlX(cft, a, b, c)*cft;
-	},
-
-	distance: function(a, b){
-		return Math.sqrt(Math.pow(a.x-b.x, 2)+Math.pow(a.y-b.y, 2));
-	},
+	Graph.prototype.ctrlY = function(cft, a, b, c){ return this.ctrlX(cft, a, b, c)*cft; };
 
 	// Give the control point coordinates of a given point b
-	controlPoint: function(a, b, c, flat, reversed){
+	Graph.prototype.controlPoint = function(a, b, c, flat, reversed){
 		var cft, ctrlPt;
 		flat = flat || false;
 		reversed = reversed || false;
@@ -121,27 +254,22 @@ var chart = {
 		else ctrlPt = (b.x-this.ctrlX(cft, a, b, c))+','+(b.y-this.ctrlY(cft, a, b, c));
 
 		return ctrlPt;
-	},
-
-	// Give the symetric point of a by b
-	symetric: function(a, b){
-		return {x: 2*b.x-a.x, y: 2*b.y-a.y};
-	},
+	};
 
 	// Check if b is a local extremum
-	isExtremum: function(a, b, c){
+	Graph.prototype.isExtremum = function(a, b, c){
 		if ((a.y <= b.y && c.y <= b.y) || (a.y >= b.y && c.y >= b.y)) return true;
 		else return false;
-	},
+	};
 
 	// Build the string given to the SVG path
-	buildSVGPath: function(){
+	Graph.prototype.buildSVGPath = function(){
 		var d = this.points, // Shortcut
 			data = 'M'+d[0].x+','+d[0].y; // 1st point
 
 		if (d.length > 2){
 			// 1st control point
-			data += 'C'+this.controlPoint(this.symetric(d[1], d[0]), d[0], d[1], false, true);
+			data += 'C'+this.controlPoint(Util.symmetric(d[1], d[0]), d[0], d[1], false, true);
 
 			// 2nd control point
 			//	If the 2nd point is a local extremum, the line formed by its control points should be horizontal
@@ -173,59 +301,53 @@ var chart = {
 		}
 
 		return data;
-	},
+	};
 
-	buildPoints: function(){
+	Graph.prototype.buildPoints = function(){
 		for (var i=0 ; i < this.points.length ; i++){
-			this.setPoint(this.points[i].x, this.points[i].y);
+			this.drawing.point(this.points[i].x, this.points[i].y);
 		}
-	},
+	};
 
-	setPoint: function(x, y, stroke, fill){
-		stroke = stroke || 'black';
-		fill = fill || 'white';
-		var c = document.createElementNS(this.svgNS, "circle");
-
-		c.setAttributeNS(null, "cx", x);
-		c.setAttributeNS(null, "cy", y);
-		c.setAttributeNS(null, "r", 5);
-		c.setAttributeNS(null, "fill", fill);
-		c.setAttributeNS(null, "stroke", stroke);
-		this.svg.appendChild(c);
-	},
-
-	setLine: function(x1, y1, x2, y2){
-		var c = document.createElementNS(this.svgNS, "line");
-
-		c.setAttributeNS(null, "x1", x1);
-		c.setAttributeNS(null, "y1", y1);
-		c.setAttributeNS(null, "x2", x2);
-		c.setAttributeNS(null, "y2", y2);
-		c.setAttributeNS(null, "fill", "gray");
-		c.setAttributeNS(null, "stroke", "gray");
-		this.svg.appendChild(c);
-	},
-
-	setAxis: function(){
+	Graph.prototype.setAxis = function(){
 		var m, yExtrema;
 		m = this.margin;
 		yExtrema = this.yExtrema();
 
-		this.setLine(m+this.leftMargin, this.h-m-this.fontSize, this.w-m, this.h-m-this.fontSize); // horizontal line
-		this.setLine(m+this.leftMargin, m, m+this.leftMargin, this.h-m-this.fontSize); // vertical line
+		this.drawing.line(m+this.leftMargin, this.h-m-this.fontSize, this.w-m, this.h-m-this.fontSize); // horizontal line
+		this.drawing.line(m+this.leftMargin, m, m+this.leftMargin, this.h-m-this.fontSize); // vertical line
 
 		// Horizontal labels
-		this.label(this.points[0].x, this.h-m+10, this.data[0].x);
-		this.label(this.points[this.points.length-1].x, this.h-m+10, this.data[this.data.length-1].x);
-		this.setLabels(this.points[0].x, this.points[this.points.length-1].x, this.data[0].x, this.data[this.data.length-1].x, 'x');
+		this.label(this.points[0].x, this.h-m+10, this.data[0].x); // first x label
+		this.label(this.points[this.points.length-1].x, this.h-m+10, this.data[this.data.length-1].x); // last x label
+		this.setLabels(this.points[0].x, this.points[this.points.length-1].x, this.data[0].x, this.data[this.data.length-1].x, 'x'); // all other x labels
 
 		// Vertical labels
-		this.label(m+this.leftMargin-10, yExtrema.min.points, yExtrema.min.data, "right");
-		this.label(m+this.leftMargin-10, yExtrema.max.points, yExtrema.max.data, "right");
-		this.setLabels(yExtrema.min.points, yExtrema.max.points, yExtrema.min.data, yExtrema.max.data, 'y');
-	},
+		this.label(m+this.leftMargin-10, yExtrema.min.points, yExtrema.min.data, "end"); // first y label
+		this.label(m+this.leftMargin-10, yExtrema.max.points, yExtrema.max.data, "end"); // last y label
+		this.setLabels(yExtrema.min.points, yExtrema.max.points, yExtrema.min.data, yExtrema.max.data, 'y'); // all other y labels
+	};
 
-	setLabels: function(a, b, av, bv, axis){
+	Graph.prototype.label = function(x, y, text, align){
+		var c, t, a, m;
+
+		m = this.margin;
+		align = align || "middle";
+
+		// Text
+		this.drawing.text(x, y, text, {
+			align: align,
+			fontSize: this.fontSize,
+			fontFamily: this.fontFamily
+		});
+
+		// Little line on the abscissa/ordinate
+		if (align == "middle") this.drawing.line(x, y-this.fontSize-6, x, y-this.fontSize-14);
+		if (align == "end") this.drawing.line(x+6, y, x+14, y);
+	};
+
+	// Recursively compute where the labels between a & b should be positioned
+	Graph.prototype.setLabels = function(a, b, av, bv, axis){
 		var c, cv, m, cond;
 		m = this.margin;
 
@@ -233,20 +355,17 @@ var chart = {
 		if (axis == 'y') cond = Math.abs(a-b) >= this.fontSize*6;
 
 		if (cond){
-			c = this.middle(a, b);
-			cv = this.middle(av, bv);
+			c = Util.middle(a, b);
+			cv = Util.middle(av, bv);
 			if (axis == 'x') this.label(c, this.h-m+10, Math.round(cv*10)/10);
-			if (axis == 'y') this.label(m+this.leftMargin-10, c, Math.round(cv*10)/10, "right");
+			if (axis == 'y') this.label(m+this.leftMargin-10, c, Math.round(cv*10)/10, "end");
 			this.setLabels(a, c, av, cv, axis);
 			this.setLabels(c, b, cv, bv, axis);
 		}
-	},
+	};
 
-	middle: function(a, b){
-		return Math.min(a, b) + (Math.abs(a-b)/2);
-	},
-
-	yExtrema: function(){
+	// Fetch the maximum/minimum values of y
+	Graph.prototype.yExtrema = function(){
 		var e;
 		e = {min: {data: this.data[0].y},
 			max: {data: this.data[0].y}};
@@ -269,99 +388,18 @@ var chart = {
 		}
 
 		return e;
-	},
+	};
 
-	labelWidth: function(){
-		var sizeOfLastLabel = Math.max(this.magnitude(Math.round(this.data[this.data.length-1].x*100)/100), this.magnitude(Math.round(this.data[0].x*100)/100));
+	// Get the (hypothetic) largest value of a x label
+	Graph.prototype.labelWidth = function(){
+		var sizeOfLastLabel = Math.max(Util.magnitude(Math.round(this.data[this.data.length-1].x*100)/100), Util.magnitude(Math.round(this.data[0].x*100)/100));
 		if (sizeOfLastLabel > 4){
 			return sizeOfLastLabel;
 		}else{
 			return 4;
 		}
-	},
+	};
 
-	label: function(x, y, text, align){
-		var c, t, a, m;
+	window.Graph = Graph;
 
-		m = this.margin;
-		align = align || "center";
-
-		// Text
-		t = document.createTextNode(text);
-		c = document.createElementNS(this.svgNS, "text");
-		c.appendChild(t);
-
-		c.setAttributeNS(null, "x", x);
-		c.setAttributeNS(null, "y", y);
-		c.setAttributeNS(null, "fill", "black");
-		c.setAttributeNS(null, "stroke", "none");
-		c.setAttributeNS(null, "font-size", this.fontSize+"px");
-		c.setAttributeNS(null, "font-family", this.fontFamily);
-		if (align == "center") c.setAttributeNS(null, "text-anchor", "middle");
-		if (align == "right") c.setAttributeNS(null, "text-anchor", "end");
-		c.setAttributeNS(null, "baseline-shift", "-0.5ex"); // vertical align
-		this.svg.appendChild(c);
-
-		// Little line
-		if (align == "center") this.setLine(x, y-20, x, y-28);
-		if (align == "right") this.setLine(x+6, y, x+14, y);
-	},
-
-	magnitude: function(x){
-		return x.toString().length;
-	},
-
-	clearSVG: function(){
-		while (this.svg.firstChild) this.svg.removeChild(this.svg.firstChild);
-	},
-
-	buildSVG: function(){
-		this.svg = document.createElementNS(this.svgNS, "svg");
-		this.container.appendChild(this.svg);
-	},
-
-	drawGraph: function(){
-		var pathData, path;
-
-		this.initDimensions();
-		this.clearSVG();
-		this.sort();
-		this.scale();
-		this.reverse();
-		pathData = this.buildSVGPath();
-
-		path = document.createElementNS(this.svgNS,"path");
-		path.setAttributeNS(null, "fill", "none");
-		path.setAttributeNS(null, "stroke", "black");
-		path.setAttributeNS(null, "d", pathData);
-		this.svg.appendChild(path);
-
-		this.buildPoints();
-		this.setAxis();
-	},
-
-	draw: function(options){
-		var key = null;
-
-		// Initialization
-		this.container = options.container;
-		this.data = options.data;
-		this.margin = options.margin || this.margin;
-		this.innerMargin = options.innerMargin || this.innerMargin;
-		this.fontSize = options.fontSize || this.fontSize;
-		this.fontFamily = options.fontFamily || this.fontFamily;
-		this.initDimensions();
-
-		this.buildSVG();
-		this.drawGraph(d);
-		var that = this;
-		window.onresize = function(e){
-			console.log(e);
-			if (key) {
-				clearTimeout(key);
-			}
-			var delay = function(){ that.drawGraph(); };
-			key = setTimeout(delay, 300);
-		};
-	}
-};
+})(window, document);

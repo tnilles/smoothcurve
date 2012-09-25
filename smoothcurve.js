@@ -12,15 +12,25 @@
 		return elem;
 	};
 
-	Draw.prototype.point = function(x, y, stroke, fill){
-		stroke = stroke || 'black';
-		fill = fill || 'white';
+	Draw.prototype.group = function(id, parent){
+		parent = parent || this.svg;
+		var g = document.createElementNS(this.svgNS, 'g'),
+			args = [['id', id]];
+		this.setAttributes(g, args);
+		parent.appendChild(g);
+		return g;
+	};
+
+	Draw.prototype.point = function(o){
+		o.stroke = o.stroke || 'black';
+		o.fill = o.fill || 'white';
+		o._parent = o._parent || this.svg;
 		var c = document.createElementNS(this.svgNS, "circle"),
-			args = [['cx', x], ['cy', y], ['r', 5], ['fill', fill], ['stroke', stroke]];
+			args = [['cx', o.x], ['cy', o.y], ['r', 5], ['fill', o.fill], ['stroke', o.stroke]];
 
 		this.setAttributes(c, args);
 
-		this.svg.appendChild(c);
+		o._parent.appendChild(c);
 	};
 
 	Draw.prototype.line = function(x1, y1, x2, y2, stroke, fill){
@@ -314,8 +324,14 @@
 	};
 
 	Graph.prototype.buildPoints = function(){
+		var g = this.drawing.group('points');
+
 		for (var i=0 ; i < this.points.length ; i++){
-			this.drawing.point(this.points[i].x, this.points[i].y);
+			this.drawing.point({
+				x: this.points[i].x,
+				y: this.points[i].y,
+				_parent: g
+			});
 		}
 	};
 

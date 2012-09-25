@@ -7,6 +7,11 @@
 		h1 { text-align: center; }
 		#myChart, #c2{ width: 80%; height: 400px; margin: 0 auto; border: 1px solid #dbdbdb;}
 		p { text-align: center; }
+		#other div {
+			width: 80%;
+			height: 400px;
+			margin: 0 auto;
+		}
 	</style>
 
 	<script type="text/javascript" src="smoothcurve.js"></script>
@@ -27,6 +32,102 @@
 				data: [{x:-5, y:-5}, {x: -4, y: 0}, {x:-3, y:-3}, {x: 10, y: 10}],
 				margin: 40
 			});
+
+			var cosine = [];
+
+			for (var k=-10 ; k<10 ; k++){
+				cosine[k+10] = {
+					x: k,
+					y: Math.cos(k)
+				};
+			}
+
+			var g3 = new Graph();
+			g3.draw({
+				container: document.getElementById('c3'),
+				data: cosine
+			});
+
+
+			var exp = [];
+
+			for (var k=-10 ; k<10 ; k++){
+				exp[k+10] = {
+					x: k,
+					y: Math.exp(k)
+				};
+			}
+
+			var g4 = new Graph();
+			g4.draw({
+				container: document.getElementById('c4'),
+				data: exp
+			});
+
+
+
+			var sqrt = [];
+
+			for (var k=0 ; k<20 ; k++){
+				sqrt[k] = {
+					x: k,
+					y: Math.sqrt(k)
+				};
+			}
+
+			var g5 = new Graph();
+			g5.draw({
+				container: document.getElementById('c5'),
+				data: sqrt
+			});
+
+
+
+			var tan = [];
+
+			for (var k=-10, j=0 ; k<10 ; k=k+0.1, j++){
+				tan[j] = {
+					x: k,
+					y: Math.tan(k)
+				};
+			}
+
+			var g6 = new Graph();
+			g6.draw({
+				container: document.getElementById('c6'),
+				data: tan
+			});
+
+
+
+			function getXY(){
+				return {
+					x: Math.floor(Math.random() * 101),
+					y: Math.floor(Math.random() * 101)
+				};
+			}
+
+			function getData(){
+				var d = [], a = Math.floor(Math.random() * 21)+3;
+				for (var j=0 ; j<a ; j++){
+					d[j] = getXY();
+				}
+				return d;
+			}
+
+			var ndiv, ng = [], ab;
+
+			for (var i=0 ; i<100 ; i++){
+				ndiv = document.createElement('div');
+				ndiv.setAttribute('id', 'chart'+i);
+				document.getElementById('other').appendChild(ndiv);
+				ng[i] = new Graph();
+				ab = getData(); //console.log(ab);
+				ng[i].draw({
+					container: ndiv,
+					data: ab
+				});
+			}
 		};
 	</script>
 </head>
@@ -40,6 +141,21 @@
 		<hr>
 	<p>d = [{x:-5, y:-5}, {x: -4, y: 0}, {x:-3, y:-3}, {x: 10, y: 10}];</p>
 	<div id="c2"></div>
+
+		<hr>
+	<p>Cosine</p>
+	<div id="c3" style="width: 80%; height: 400px;"></div>
+
+	<p>Exponential</p>
+	<div id="c4" style="width: 80%; height: 400px;"></div>
+
+	<p>Square root</p>
+	<div id="c5" style="width: 80%; height: 400px;"></div>
+
+	<p>Tangente</p>
+	<div id="c6" style="width: 80%; height: 400px;"></div>
+
+	<div id="other"></div>
 
 </body>
 </html>

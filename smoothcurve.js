@@ -132,10 +132,9 @@
 
 		this.drawing.container = this.container;
 		this.drawing.buildSVG();
-		this.drawGraph(this.data);
+		this.drawGraph();
 		that = this;
 		Util.addEvent(window, 'resize', function(e){
-			console.log(e);
 			if (key) {
 				clearTimeout(key);
 			}
@@ -298,6 +297,17 @@
 			}
 		}else{
 			data += ' '+d[1].x+','+d[1].y;
+		}
+
+		return data;
+	};
+
+	Graph.prototype.buildSVGPathLinear = function(){
+		var d = this.points, // Shortcut
+			data = 'M'+d[0].x+','+d[0].y; // 1st point
+
+		for (var i=1 ; i<d.length ; i++){
+			data += 'L'+d[i].x+','+d[i].y;
 		}
 
 		return data;

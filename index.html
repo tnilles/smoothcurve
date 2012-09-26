@@ -100,17 +100,24 @@
 
 
 
-			function getXY(){
+			function getXY(usedX){
+				var x;
+
+				do{
+					x = Math.floor(Math.random() * 101); 
+				} while (usedX.indexOf(x) != -1); 
+
 				return {
-					x: Math.floor(Math.random() * 101),
+					x: x,
 					y: Math.floor(Math.random() * 101)
 				};
 			}
 
 			function getData(){
-				var d = [], a = Math.floor(Math.random() * 21)+3;
+				var d = [], a = Math.floor(Math.random() * 21)+3, usedX = [];
 				for (var j=0 ; j<a ; j++){
-					d[j] = getXY();
+					d[j] = getXY(usedX);
+					usedX.push(d[j].x);
 				}
 				return d;
 			}

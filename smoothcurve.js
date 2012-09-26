@@ -44,7 +44,25 @@
 		this.svg.appendChild(c);
 	};
 
-	Draw.prototype.clear = function(){ while (this.svg.firstChild) this.svg.removeChild(this.svg.firstChild); };
+	Draw.prototype.rect = function(o){
+		o.rx = o.rx || 0;
+		o.ry = o.ry || 0;
+		o.fill = 'white';
+		o.stroke = 'black';
+		o.strokeWidth = 1;
+		o._parent = o._parent || this.svg;
+
+		var r = document.createElementNS(this.svgNS, 'rect'),
+			args = [['x', o.x], ['y', o.y], ['rx', o.rx], ['ry', o.ry], ['width', o.width], ['height', o.height],
+					['fill', o.fill], ['stroke', o.stroke], ['stroke-width', o.strokeWidth]];
+		this.setAttributes(r, args);
+		o._parent.appendChild(r);
+	};
+
+	Draw.prototype.clear = function(e){
+		e = e || this.svg;
+		while (e.firstChild) e.removeChild(e.firstChild);
+	};
 
 	Draw.prototype.buildSVG = function(){
 		this.svg = document.createElementNS(this.svgNS, "svg");
@@ -59,6 +77,8 @@
 		options.fontSize = options.fontSize || '14';
 		options.fontFamily = options.fontFamily || 'Arial';
 		options.align = options.align || 'start'; // or middle or end
+		options.baselineShift = options.baselineShift || '-0.5ex';
+		options._parent = options._parent || this.svg;
 
 		t = document.createTextNode(text);
 		c = document.createElementNS(this.svgNS, "text");
@@ -66,23 +86,24 @@
 
 		// Set SVG text attributes
 		args = [['x', x], ['y', y], ['fill', options.fill], ['stroke', options.stroke], ['font-size', options.fontSize+"px"],
-				['font-family', options.fontFamily], ['text-anchor', options.align], ['baseline-shift', '-0.5ex']]; // baseline: vertical align
+				['font-family', options.fontFamily], ['text-anchor', options.align], ['baseline-shift', options.baselineShift]]; // baseline: vertical align
 
 		this.setAttributes(c, args);
 
-		this.svg.appendChild(c);
+		options._parent.appendChild(c);
 	};
 
-	Draw.prototype.path = function(pathData, fill, stroke){
+	Draw.prototype.path = function(pathData, parent, fill, stroke){
 		stroke = stroke || 'black';
 		fill = fill || 'none';
+		parent = parent || this.svg;
 
 		var path = document.createElementNS(this.svgNS,"path"),
 			args = [['d', pathData], ['fill', fill], ['stroke', stroke]];
 
 		for (var i=0 ; i<args.length ; i++) path.setAttributeNS(null, args[i][0], args[i][1]);
 
-		this.svg.appendChild(path);
+		parent.appendChild(path);
 	};
 
 
@@ -100,7 +121,7 @@
 		if (e.attachEvent){
 			e.attachEvent('on'+type, f);
 		}else if (e.addEventListener){
-			e.addEventListener('resize', f, false);
+			e.addEventListener(type, f, false);
 		}
 	};
 
@@ -115,6 +136,9 @@
 		this.w = 0; // container width
 		this.h = 0; // container height
 		this.drawing = new Draw(); // Draw utilities functions
+		this.gr = undefined; // Graph group
+		this.tt = undefined; // Tooltip group when hovering points
+		this.pts = undefined; // Points group
 		// Customizable properties
 		this.margin = 40;
 		this.innerMargin = 20;
@@ -139,7 +163,6 @@
 		
 		this.initDimensions();
 
-
 		this.drawing.container = this.container;
 		this.drawing.buildSVG();
 		this.drawGraph();
@@ -157,12 +180,16 @@
 	Graph.prototype.drawGraph = function(){
 		this.initDimensions();
 		this.drawing.clear();
+		this.gr = this.drawing.group('graph');
 		this.sort();
 		this.scale();
 		this.reverse();
-		this.drawing.path(this.buildSVGPath());
+		this.drawing.path(this.buildSVGPath(), this.gr);
 		this.buildPoints();
 		this.setAxis();
+		this.tt = this.drawing.group('tooltip');
+		this.tooltip();
+		this.tooltipListener();
 	};
 
 	// Compute margins, y values extrema, container dimensions
@@ -324,13 +351,13 @@
 	};
 
 	Graph.prototype.buildPoints = function(){
-		var g = this.drawing.group('points');
+		this.pts = this.drawing.group('points');
 
 		for (var i=0 ; i < this.points.length ; i++){
 			this.drawing.point({
 				x: this.points[i].x,
 				y: this.points[i].y,
-				_parent: g
+				_parent: this.pts
 			});
 		}
 	};
@@ -424,6 +451,62 @@
 		}else{
 			return 4;
 		}
+	};
+
+	// Draw initial tooltip
+	Graph.prototype.tooltip = function(){
+		this.tt.setAttributeNS(null, 'transform', 'translate(300,30)');
+		this.tt.style.visibility = 'hidden';
+
+		this.drawing.rect({
+			x: '0px',
+			y: '0px',
+			width: '70px',
+			height: '40px',
+			rx: '5px',
+			ry: '5px',
+			_parent: this.tt
+		});
+
+		this.tt.t = this.drawing.group('tooltip-text', this.tt);
+	};
+
+	// Re-draw tooltip
+	Graph.prototype.reTooltip = function(x, y, text){
+		this.tt.setAttributeNS(null, 'transform', 'translate('+x+','+y+')');
+
+		this.drawing.clear(this.tt.t); // Clear the text inside the tooltip box
+
+		if (Array.isArray(text))
+			for (var i=0 ; i<text.length ; i++) this.drawing.text(10, 10+i*this.fontSize, text[i], {baselineShift: 'sub', _parent: this.tt.t});
+		else
+			this.drawing.text(10, 10, text, {baselineShift: 'sub', _parent: this.tt.t});
+	};
+
+	// Fired on point hover
+	Graph.prototype.tooltipListener = function(){
+		var _points = this.pts.getElementsByTagName('circle'), x, y, that = this;
+
+		function a(e, x, y){
+			Util.addEvent(e, 'mouseover', function(e){
+				that.toggleTooltip();
+				that.reTooltip(e.target.getBBox().x+10, e.target.getBBox().y+10, ['x:'+x, 'y:'+y]);
+			});
+			Util.addEvent(e, 'mouseout', function(e){
+				that.toggleTooltip();
+			});
+		}
+
+		for (var i=0 ; i<_points.length ; i++){
+			x = this.data[i].x;
+			y = this.data[i].y;
+			a(_points[i], x, y);
+		}
+	};
+
+	Graph.prototype.toggleTooltip = function(){
+		if (this.tt.style.visibility == 'hidden') this.tt.style.visibility = 'visible';
+		else this.tt.style.visibility = 'hidden';
 	};
 
 	window.Graph = Graph;
